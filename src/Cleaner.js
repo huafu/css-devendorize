@@ -232,6 +232,7 @@ function findMatchingKeyframe(keyframes, keyframe) {
  * @param {Object} options
  */
 function Cleaner(options) {
+  this.reset();
 }
 
 /**
@@ -571,41 +572,82 @@ Cleaner.prototype.reset = function () {
 };
 
 /**
- * Clean the given input and return the new CSS
+ * Lint the current content
  *
- * @method clean
- * @param {String} source
- * @param {Object} [options]
- * @returns {String}
- */
-Cleaner.prototype.clean = function (source, options) {
-  return this.cleanAst(css.parse(source)).toString();
-};
-
-/**
- * Cleans a given CSS AST
- *
- * @method cleanAst
- * @param {Object} ast
- * @param {Object} [options]
+ * @method lint
  * @chainable
  */
-Cleaner.prototype.cleanAst = function (ast, options) {
-  this.reset();
-  this._ast = ast;
+Cleaner.prototype.lint = function() {
+  if(!this._ast){
+    throw new Error('nothing to lint');
+  }
   this._processNode(this._ast, 0);
   this._removeFlagged();
   return this;
 };
 
 /**
- * Returns the CSS version of this cleaner
+ * Clean the given input and return the new CSS
  *
- * @method toString
+ * @method lintCss
+ * @param {String} source
+ * @param {Object} [options]
  * @returns {String}
  */
-Cleaner.prototype.toString = function () {
-  return css.stringify(this._ast);
+Cleaner.prototype.lintCss = function (source, options) {
+  return this.lintAst(css.parse(source, options)).stringify(options);
+};
+
+/**
+ * Append some CSS source to the cleaner
+ *
+ * @method appendCss
+ * @param {String} source
+ * @param {Object} options
+ * @chainable
+ */
+Cleaner.prototype.appendCss = function(source, options){
+  return this.appendAst(css.parse(source, options));
+};
+
+/**
+ * Cleans a given CSS AST
+ *
+ * @method lintAst
+ * @param {Object} ast
+ * @chainable
+ */
+Cleaner.prototype.lintAst = function (ast) {
+  this.reset();
+  this._ast = ast;
+  return this.lint();
+};
+
+/**
+ * Append another CSS AST
+ *
+ * @method appendAst
+ * @param {Object} ast
+ * @chainable
+ */
+Cleaner.prototype.appendAst = function(ast) {
+  if(!this._ast){
+    this._ast = ast;
+  }else{
+    this._ast.rules.push.apply(this._ast.rules, ast.rules);
+  }
+  return this;
+};
+
+/**
+ * Returns the CSS version of this cleaner
+ *
+ * @method stringify
+ * @param {Object} [options]
+ * @returns {String}
+ */
+Cleaner.prototype.stringify = function (options) {
+  return css.stringify(this._ast, options);
 };
 
 module.exports = Cleaner;

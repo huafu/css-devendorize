@@ -1,0 +1,205 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var program = require('commander'),
+  sprintf = require('util').format,
+  path = require('path'),
+  fs = require('fs'),
+  glob = require('glob'),
+  resolve = path.resolve,
+  relative = path.relative,
+  exists = fs.existsSync || path.existsSync,
+  Cleaner = require('../').Cleaner,
+  join = path.join,
+  basename = path.basename,
+  dirname = path.dirname,
+  mkdirp = require('mkdirp').sync,
+  basePath = process.cwd(),
+  cleaner = new Cleaner,
+  input, output, outputIsDir, outputPath, fileName, options;
+
+/**
+ * Files.
+ */
+
+var files = [];
+
+function error(message, code) {
+  process.stderr.write('' + message);
+  console.log();
+  process.exit(code || 1);
+}
+
+process.on('error', function (err) {
+  error(err);
+});
+
+/**
+ * Lookup file names at the given `path`.
+ */
+function lookupFiles(path, recursive) {
+  var files = [];
+  var re = /\.css$/i;
+
+  if (!exists(path)) {
+    if (exists(path + '.css')) {
+      path += '.css';
+    }
+    else {
+      files = glob.sync(path);
+      if (!files.length) {
+        error("cannot resolve path (or pattern) '" + path + "'");
+      }
+      return files;
+    }
+  }
+
+  try {
+    var stat = fs.statSync(path);
+    if (stat.isFile()) return path;
+  }
+  catch (ignored) {
+    return;
+  }
+
+  fs.readdirSync(path).forEach(function (file) {
+    file = join(path, file);
+    try {
+      var stat = fs.statSync(file);
+      if (stat.isDirectory()) {
+        if (recursive) {
+          files = files.concat(lookupFiles(file, extensions, recursive));
+        }
+        return;
+      }
+    }
+    catch (ignored) {
+      return;
+    }
+    if (!stat.isFile() || !re.test(file) || basename(file)[0] === '.') return;
+    files.push(file);
+  });
+
+  return files;
+}
+
+
+// options
+
+program
+  .version(JSON.parse(fs.readFileSync(__dirname + '/../package.json', 'utf8')).version)
+  .usage('[options] [files]')
+  .option('-o, --output <path>', 'where to generate the output (file or path)')
+  .option('-b, --base <path>', 'base path, default to working directory')
+  .option('-m, --source-maps', 'base path, default to working directory')
+  .option('--recursive', 'include sub directories');
+
+program.name = 'css-unprefix';
+
+// parse args
+
+program.parse(process.argv);
+
+//args
+
+var args = program.args;
+
+if (!args.length) {
+  console.error();
+}
+
+args.forEach(function (arg) {
+  files = files.concat(lookupFiles(arg, program.recursive));
+});
+
+// resolve
+
+files = files.map(function (path) {
+  return resolve(path);
+});
+
+
+/**
+ * Hide the cursor.
+ */
+
+function hideCursor() {
+  process.stdout.write('\u001b[?25l');
+}
+
+/**
+ * Show the cursor.
+ */
+
+function showCursor() {
+  process.stdout.write('\u001b[?25h');
+}
+
+// output
+if (program.output) {
+  outputPath = resolve(basePath, program.output);
+  outputIsDir = !(/\.css$/i.test(outputPath) && (!exists(outputPath) || !fs.statSync(outputPath).isDirectory()));
+}
+else {
+  outputPath = null;
+  if (program.soureMaps) {
+    error('you must specify the output destination to generate the source-maps');
+  }
+}
+// base path
+if (program.basePath) {
+  basePath = resolve(basePath, program.basePath);
+}
+
+for (var i = 0; i < files.length; i++) {
+  input = fs.readFileSync(files[i], {encoding: 'utf8'});
+  fileName = relative(basePath, files[i]);
+  options = {source: fileName, sourcemap: !!program.sourceMaps};
+  if (outputPath) {
+    if (outputIsDir) {
+      output = cleaner.lintCss(input, options);
+      fileName = dirname(resolve(outputPath, fileName));
+      if (!exists(fileName)) {
+        mkdirp(fileName);
+      }
+      fileName = join(fileName, basename(files[i]));
+      if (options.sourcemap) {
+        fs.writeFileSync(fileName, output.code, {encoding: 'utf8'});
+        fs.writeFileSync(fileName + '.map', output.map, {encoding: 'utf8'});
+      }
+      else {
+        fs.writeFileSync(fileName, output, {encoding: 'utf8'});
+      }
+    }
+    else {
+      cleaner.appendCss(input, options);
+    }
+  }
+  else {
+    output = cleaner.lintCss(input, options);
+    process.stdout.write(output + '\n');
+  }
+}
+
+if (outputPath && !outputIsDir) {
+  try {
+    output = cleaner.lint().stringify({sourcemap: !!program.sourceMaps});
+  }
+  catch (err) {
+    error(err);
+  }
+  fileName = dirname(outputPath);
+  if (!exists(fileName)) {
+    mkdirp(fileName);
+  }
+  if (options.sourcemap) {
+    fs.writeFileSync(outputPath, output.code, {encoding: 'utf8'});
+    fs.writeFileSync(outputPath + '.map', output.map, {encoding: 'utf8'});
+  }
+  else {
+    fs.writeFileSync(outputPath, output, {encoding: 'utf8'});
+  }
+}

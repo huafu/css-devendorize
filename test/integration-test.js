@@ -7,6 +7,6 @@ var lib = require('../index');
 describe('css-devendorize', function () {
   it('should remove all vendor prefixes', function () {
     var cleaner = new lib.Cleaner();
-    expect(cleaner.clean(FIXTURES.sources.app)).to.equal(FIXTURES.expecteds.app);
+    expect(cleaner.lintCss(FIXTURES.sources.app)).to.equal(FIXTURES.expecteds.app);
   });
 });
