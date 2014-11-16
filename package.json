@@ -1,0 +1,39 @@
+{
+  "name": "css-devendorize",
+  "version": "0.0.0",
+  "description": "Tool to remove vendor prefixes from CSS files",
+  "main": "index.js",
+  "scripts": {
+    "test": "make test",
+    "build": "make build",
+    "pre-publish": "make build",
+    "pre-version": "make build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/huafu/css-devendorize.git"
+  },
+  "keywords": [
+    "css",
+    "vendor",
+    "prefix",
+    "remove"
+  ],
+  "author": "Huafu Gandon <huafu.gandon@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/huafu/css-devendorize/issues"
+  },
+  "homepage": "https://github.com/huafu/css-devendorize",
+  "devDependencies": {
+    "browserify": "^6.2.0",
+    "chai": "^1.9.2",
+    "jscssp": "therealglazou/jscssp#587f51fe",
+    "mocha": "^2.0.1",
+    "testem": "^0.6.23",
+    "uglify-js": "^2.4.15"
+  },
+  "dependencies": {
+    "css": "^2.1.0"
+  }
+}

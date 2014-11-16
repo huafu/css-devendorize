@@ -1,0 +1,59 @@
+.rule-with-base {
+  box-shadow: inset 0 0 6px #eee;
+}
+
+.rule-without-base {
+  border-radius: 4px;
+}
+
+@keyframes keyframeWithBase {
+  0% {
+    border-radius: 0;
+  }
+
+  100% {
+    border-radius: 10px;
+  }
+}
+
+@keyframes keyframeWithoutBase {
+  0% {
+    border-radius: 0;
+  }
+
+  100% {
+    border-radius: 10px;
+  }
+}
+
+@media print {
+  body {
+    align-content: center;
+  }
+}
+
+@media screen {
+  body {
+    align-content: center;
+    background-image: linear-gradient(to right, rgba( 0,0,0,0.9 ) 25%, rgba( 0,0,0,0.1 ) 50%, rgba( 0,0,0,0.9 ) 75%);
+  }
+}
+
+@media screen, print {
+  body {
+    animation-delay: 1s;
+    animation-duration: 3s;
+    animation-direction: reverse;
+    animation-name: move_eye;
+  }
+
+@keyframes move_eye {
+    from {
+      margin-left: -20%;
+    }
+
+    to {
+      margin-left: 100%;
+    }
+}
+}

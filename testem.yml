@@ -1,0 +1,3 @@
+framework: mocha
+src_files:
+  - "dist/css-devendorize-test.js"
