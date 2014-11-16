@@ -1,6 +1,6 @@
 {
   "name": "css-devendorize",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Tool to remove vendor prefixes from CSS files",
   "main": "index.js",
   "scripts": {
