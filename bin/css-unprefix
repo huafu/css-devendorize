@@ -1,11 +1,6 @@
 #!/usr/bin/env node
 
-/**
- * Module dependencies.
- */
-
 var program = require('commander'),
-  sprintf = require('util').format,
   path = require('path'),
   fs = require('fs'),
   glob = require('glob'),
@@ -18,27 +13,34 @@ var program = require('commander'),
   dirname = path.dirname,
   mkdirp = require('mkdirp').sync,
   basePath = process.cwd(),
+  sourceMapBasePath = process.cwd(),
   cleaner = new Cleaner,
-  input, output, outputIsDir, outputPath, fileName, options;
+  files = [];
+var input, output, outputIsDir, outputPath, fileName, options;
 
 /**
- * Files.
+ * Outputs an error
+ *
+ * @method error
+ * @param message
+ * @param code
  */
-
-var files = [];
-
 function error(message, code) {
   process.stderr.write('' + message);
   console.log();
   process.exit(code || 1);
 }
-
 process.on('error', function (err) {
   error(err);
 });
 
 /**
- * Lookup file names at the given `path`.
+ * Grab all files from given path
+ *
+ * @method lookupFiles
+ * @param {String} path
+ * @param {Boolean} recursive
+ * @returns {Array.<String>}
  */
 function lookupFiles(path, recursive) {
   var files = [];
@@ -71,7 +73,7 @@ function lookupFiles(path, recursive) {
       var stat = fs.statSync(file);
       if (stat.isDirectory()) {
         if (recursive) {
-          files = files.concat(lookupFiles(file, extensions, recursive));
+          files = files.concat(lookupFiles(file, recursive));
         }
         return;
       }
@@ -87,56 +89,30 @@ function lookupFiles(path, recursive) {
 }
 
 
-// options
-
+// define our program
 program
-  .version(JSON.parse(fs.readFileSync(__dirname + '/../package.json', 'utf8')).version)
+  .version(require('../package.json').version)
   .usage('[options] [files]')
-  .option('-o, --output <path>', 'where to generate the output (file or path)')
-  .option('-b, --base <path>', 'base path, default to working directory')
-  .option('-m, --source-maps', 'base path, default to working directory')
-  .option('--recursive', 'include sub directories');
-
+  .option('-o, --output <path>', 'path where the output file(s) will be generated (file or path)')
+  .option('-b, --base-path <path>', 'base path when `output` is a directory, default to current directory')
+  .option('-m, --source-map [path]', 'generates source-map, relative to current directory or given path')
+  .option('-r, --recursive', 'include sub directories');
 program.name = 'css-unprefix';
 
-// parse args
 
+// parse arguments
 program.parse(process.argv);
-
-//args
-
 var args = program.args;
-
 if (!args.length) {
-  console.error();
+  error('no input file');
 }
-
 args.forEach(function (arg) {
   files = files.concat(lookupFiles(arg, program.recursive));
 });
-
-// resolve
-
 files = files.map(function (path) {
   return resolve(path);
 });
 
-
-/**
- * Hide the cursor.
- */
-
-function hideCursor() {
-  process.stdout.write('\u001b[?25l');
-}
-
-/**
- * Show the cursor.
- */
-
-function showCursor() {
-  process.stdout.write('\u001b[?25h');
-}
 
 // output
 if (program.output) {
@@ -145,61 +121,94 @@ if (program.output) {
 }
 else {
   outputPath = null;
-  if (program.soureMaps) {
-    error('you must specify the output destination to generate the source-maps');
+  if (program.soureMap) {
+    error('you must specify the output destination to generate the source-map');
   }
+}
+
+// source-map base bath
+if (typeof program.sourceMap === 'string') {
+  sourceMapBasePath = resolve(basePath, program.sourceMap);
 }
 // base path
 if (program.basePath) {
   basePath = resolve(basePath, program.basePath);
 }
 
+
+// handles un-prefixing
 for (var i = 0; i < files.length; i++) {
+  // input is our source
   input = fs.readFileSync(files[i], {encoding: 'utf8'});
-  fileName = relative(basePath, files[i]);
-  options = {source: fileName, sourcemap: !!program.sourceMaps};
+  // fileName is the path to our file relatively to the basePath
+  fileName = relative(sourceMapBasePath, files[i]);
+  // options are parsing and linting options
+  options = {source: fileName, sourcemap: !!program.sourceMap};
   if (outputPath) {
+    // if we have an outputPath it is not for STDOUT
     if (outputIsDir) {
+      // if the output is a directory, we do not concatenate all files
+      // output is our linted CSS
       output = cleaner.lintCss(input, options);
-      fileName = dirname(resolve(outputPath, fileName));
+      // filename is now the path to the output file
+      fileName = dirname(resolve(outputPath, relative(basePath, files[i])));
       if (!exists(fileName)) {
+        // we create the directory if it does not exists
         mkdirp(fileName);
       }
+      // then finally add the file name without extension
       fileName = join(fileName, basename(files[i]));
       if (options.sourcemap) {
-        fs.writeFileSync(fileName, output.code, {encoding: 'utf8'});
-        fs.writeFileSync(fileName + '.map', output.map, {encoding: 'utf8'});
+        // if we have to handle source map
+        fs.writeFileSync(
+          fileName,
+          output.code + '\n/*# sourceMappingURL=' + basename(fileName) + '.map*/\n',
+          {encoding: 'utf8'}
+        );
+        fs.writeFileSync(fileName + '.map', JSON.stringify(output.map), {encoding: 'utf8'});
       }
       else {
+        // just handle the output CSS, no source map
         fs.writeFileSync(fileName, output, {encoding: 'utf8'});
       }
     }
     else {
+      // outputPath is a file, we need to concatenate all input files together
       cleaner.appendCss(input, options);
     }
   }
   else {
+    // no outputPath, for STDOUT
     output = cleaner.lintCss(input, options);
     process.stdout.write(output + '\n');
   }
 }
 
 if (outputPath && !outputIsDir) {
+  // if the outputPath was a file
   try {
-    output = cleaner.lint().stringify({sourcemap: !!program.sourceMaps});
+    // try to lint the concatenated AST of all files
+    output = cleaner.lint().stringify({sourcemap: !!program.sourceMap});
   }
   catch (err) {
     error(err);
   }
+  // get the path to the output file
   fileName = dirname(outputPath);
   if (!exists(fileName)) {
     mkdirp(fileName);
   }
   if (options.sourcemap) {
-    fs.writeFileSync(outputPath, output.code, {encoding: 'utf8'});
-    fs.writeFileSync(outputPath + '.map', output.map, {encoding: 'utf8'});
+    // handle source map
+    fs.writeFileSync(
+      outputPath,
+      output.code + '\n/*# sourceMappingURL=' + basename(outputPath) + '.map*/\n',
+      {encoding: 'utf8'}
+    );
+    fs.writeFileSync(outputPath + '.map', JSON.stringify(output.map), {encoding: 'utf8'});
   }
   else {
+    // no source map
     fs.writeFileSync(outputPath, output, {encoding: 'utf8'});
   }
 }
