@@ -6,7 +6,7 @@ While this is still in alpha, it's working and usable.
 
 ## Installation
 
-* `npm install --save css-devendorize`
+* `npm install -g css-devendorize`
 
 ## Usage
 
