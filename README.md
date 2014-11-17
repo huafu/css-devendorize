@@ -1,6 +1,6 @@
 # CSS devendorize - CSS vendor prefixes remover
 
-This can sounds weird to **remove** CSS vendor prefixes from a CSS, but that in the case you want to use [prefix-free](http://leaverou.github.io/prefixfree/) for example without changing your vendors' CSS files one by one, you can use this tool to remove the vendors from any source.
+This can sounds weird to **remove** CSS vendor prefixes from a CSS, but what in the case you want to use [prefix-free](http://leaverou.github.io/prefixfree/) for example without changing your vendors' CSS files one by one, you can use this tool to remove the vendors from any source.
 
 While this is still in alpha, it's working and usable.
 
